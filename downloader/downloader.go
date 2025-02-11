@@ -1,50 +1,43 @@
 package downloader
 
 import (
+	"io"
 	"log"
 	"net/http"
-	"spamhaus/store"
 	"time"
 )
 
 var GlobalDownloader *Downloader
 
 type Downloader struct {
-	workerPool    *WorkerPool
-	maxConcurrent int
+	workerPool *WorkerPool
 }
 
-type Task string
-
-func New(maxConcurrent int, poolSize int) {
-	workerPool := NewWorkerPool(poolSize)
+func New(maxConcurrent int) {
+	workerPool := NewWorkerPool(maxConcurrent)
 	GlobalDownloader = &Downloader{
-		workerPool:    workerPool,
-		maxConcurrent: maxConcurrent,
+		workerPool: workerPool,
 	}
 }
 
-func (d *Downloader) DownloadURl(url string) {
+func (d *Downloader) AddDownloadTask(url string) {
 	log.Printf("starting download of %s", url)
-	d.workerPool.addTask(Task(url))
+	d.workerPool.addTask(url)
 }
 
-func (t Task) FetchURL() {
-	startTime := time.Now()
-
-	resp, err := http.Get(string(t))
+func fetchURL(url string) (bool, int64) {
+	start := time.Now()
+	resp, err := http.Get(url)
 	if err != nil {
-		log.Printf("error: failed to fetch URL: %s, %v", t, err)
-		// TODO update download stats to say it failed
-		return
+		return false, 0
 	}
+	duration := time.Since(start).Milliseconds()
 	defer resp.Body.Close()
 
-	duration := time.Since(startTime).Milliseconds()
-	store.GlobalStore.UpdateURL(string(t), true, duration)
+	_, err = io.Copy(io.Discard, resp.Body) // Discard response body
+	if err == nil && resp.StatusCode == http.StatusOK {
+		return true, duration
+	}
 
-	data := store.GlobalStore.GetStats()
-	log.Printf("%v", data)
-	BatchProcess()
-
+	return false, 0
 }

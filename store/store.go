@@ -1,6 +1,7 @@
 package store
 
 import (
+	"log"
 	"sort"
 	"sync"
 	"time"
@@ -22,6 +23,12 @@ type Store struct {
 	tail *URLNode
 }
 
+type URLStore interface {
+	GetLatestURLs(n int, sortBy string) []map[string]*URLData
+	UpdateURL(url string, success bool, timeMs int64)
+	GetStats() map[string]*URLData
+}
+
 func New() {
 	GlobalStore = &Store{
 		mu:   &sync.RWMutex{},
@@ -29,10 +36,31 @@ func New() {
 	}
 }
 
-func (s *Store) GetTopURLs() []*URLNode {
+func (s *Store) GetLatestURLs(n int, sortBy string) []*URLNode {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	nodes := make([]*URLNode, 0)
+	current := s.tail
+
+	for current != nil && len(nodes) < n {
+		nodes = append(nodes, current)
+		current = current.Prev
+	}
+
+	// Sort by count, list is already sorted by newest to oldest
+	if sortBy == "count" {
+		sort.Slice(nodes, func(i, j int) bool {
+			return nodes[i].Data.Count > nodes[j].Data.Count
+		})
+	}
+
+	return nodes
+}
+
+func (s *Store) GetTopURLs(n int) []*URLNode {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	var nodes []*URLNode
 	for node := s.head; node != nil; node = node.Next {
 		nodes = append(nodes, node)
@@ -44,8 +72,8 @@ func (s *Store) GetTopURLs() []*URLNode {
 	})
 
 	// Return  the top 10 URLs
-	if len(nodes) > 10 {
-		nodes = nodes[:10]
+	if len(nodes) > n {
+		nodes = nodes[:n]
 	}
 
 	return nodes
@@ -57,6 +85,19 @@ func (s *Store) UpdateURL(url string, success bool, timeMs int64) {
 
 	// If this URL has already been submitted, update the data
 	if node, exists := s.data[url]; exists {
+		log.Printf("updating existing url: %s", url)
+		if node.Prev != nil {
+			node.Prev.Next = node.Next
+		} else {
+			s.head = node.Next
+		}
+
+		if node.Next != nil {
+			node.Next.Prev = node.Prev
+		} else {
+			s.tail = node.Prev
+		}
+
 		if success {
 			node.Data.Successes++
 			node.Data.LastDownloadMs = timeMs
@@ -66,12 +107,21 @@ func (s *Store) UpdateURL(url string, success bool, timeMs int64) {
 
 		node.Data.LastSubmitted = time.Now()
 		node.Data.Count++
+
+		// Move node to end
+		node.Prev, node.Next = s.tail, nil
+		if s.tail != nil {
+			s.tail.Next = node
+		}
+		s.tail = node
+
 		return
+
 	}
 
 	// URL hasn't been submitted, request was successful, add it to the map
 	if success {
-
+		log.Printf("adding new url: %s", url)
 		newNode := &URLNode{
 			URL: url,
 			Data: &URLData{
@@ -96,12 +146,6 @@ func (s *Store) UpdateURL(url string, success bool, timeMs int64) {
 		s.data[url] = newNode
 	}
 
-}
-
-type URLStore interface {
-	GetLatestURLs(n int, sortBy string) []map[string]*URLData
-	UpdateURL(url string, success bool, timeMs int64)
-	GetStats() map[string]*URLData
 }
 
 func (s *Store) GetStats() map[string]*URLNode {

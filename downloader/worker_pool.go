@@ -1,15 +1,18 @@
 package downloader
 
-import "sync"
+import (
+	"spamhaus/store"
+	"sync"
+)
 
 type WorkerPool struct {
 	wg    sync.WaitGroup
-	queue chan Task
+	queue chan string
 }
 
 func NewWorkerPool(poolSize int) *WorkerPool {
 	pool := &WorkerPool{
-		queue: make(chan Task, poolSize),
+		queue: make(chan string, poolSize),
 	}
 
 	for i := 0; i < poolSize; i++ {
@@ -19,14 +22,17 @@ func NewWorkerPool(poolSize int) *WorkerPool {
 	return pool
 }
 
-func (wp *WorkerPool) addTask(task Task) {
+func (wp *WorkerPool) addTask(url string) {
 	wp.wg.Add(1)
-	wp.queue <- task
+	wp.queue <- url
 }
 
 func (wp *WorkerPool) worker() {
-	for task := range wp.queue {
-		task.FetchURL()
+	for url := range wp.queue {
+		success, duration := fetchURL(url)
+		if success {
+			store.GlobalStore.UpdateURL(url, success, duration)
+		}
 		wp.wg.Done()
 	}
 }

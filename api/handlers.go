@@ -7,10 +7,17 @@ import (
 	"net/http"
 	"net/url"
 	"spamhaus/downloader"
+	"spamhaus/store"
+	"strconv"
 )
 
 type SubmitURLRequest struct {
 	URL string `json:"url"`
+}
+
+type TopURLSResponse struct {
+	URL   string `json:"url"`
+	Count int    `json:"count"`
 }
 
 func SubmitURL(w http.ResponseWriter, r *http.Request) {
@@ -32,31 +39,50 @@ func SubmitURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add download job for this URL to the worker pool
-	go downloader.GlobalDownloader.DownloadURl(req.URL)
+	go downloader.GlobalDownloader.AddDownloadTask(req.URL)
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "url submitted"})
+	err = json.NewEncoder(w).Encode(map[string]string{"message": "url submitted"})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error: encoding url to SubmitURLRequest: %s", err), http.StatusInternalServerError)
+		return
+	}
 
 }
 
 func TopURLs(w http.ResponseWriter, r *http.Request) {
-	orderBy := r.URL.Query().Get("order_by")
 	sortBy := r.URL.Query().Get("sort_by")
+	getTopN := r.URL.Query().Get("get_n")
 
-	if sortBy != "count" && sortBy != "requests" {
+	if sortBy != "count" && sortBy != "latest" {
 		http.Error(w, fmt.Sprintf("error: invalid sort by %s", sortBy), http.StatusBadRequest)
 	}
 
-	if orderBy != "asc" && orderBy != "desc" {
-		http.Error(w, fmt.Sprintf("error: invalid sort by %s", orderBy), http.StatusBadRequest)
+	n, err := strconv.Atoi(getTopN)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error: invalid n: %s should be convertable to int", getTopN), http.StatusBadRequest)
 	}
 
-	// return a json response
-	/*
-		[
-			{"url": "https://example.com", count: 1},
-		]
-	*/
+	urls := store.GlobalStore.GetTopURLs(n)
+	responses := make([]TopURLSResponse, len(urls))
+	for _, node := range urls {
+		responses = append(responses, TopURLSResponse{
+			URL:   node.URL,
+			Count: node.Data.Count,
+		})
+	}
+
+	jsonData, err := json.Marshal(responses)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error: encoding top urls: %s", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(jsonData)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error: writing top urls: %s", err), http.StatusInternalServerError)
+	}
+
 }
 
 // validateURL checks if a given URL is valid.
