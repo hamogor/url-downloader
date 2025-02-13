@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	Requests = make(chan Request, 100)
+	Requests = make(chan Request)
 	finished = make(chan struct{})
 )
 
