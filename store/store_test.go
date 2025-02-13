@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -23,132 +24,121 @@ func newStore(n int) {
 
 // TestStore_GetLatestURLs ensures that the latest n urls are returned
 // either by their time submitted or by their count
-//func TestStore_GetLatestURLs(t *testing.T) {
-//	newStore(15)
-//
-//	latest := Filter(5, "latest")
-//
-//	// This list is in the order we expect back from the store when getting by "latest"
-//	expectedURLS := []string{
-//		"http://example14.com",
-//		"http://example13.com",
-//		"http://example12.com",
-//		"http://example11.com",
-//		"http://example10.com",
-//	}
-//
-//	for i := range latest {
-//		if latest[i].URL != expectedURLS[i] {
-//			t.Errorf("expected %s, got %s", expectedURLS[i], latest[i].URL)
-//		}
-//	}
-//
-//	// Update the first 5 URLs with some extra Counts
-//	n := 1
-//	for i := 0; i < 5; i++ {
-//		for j := 0; j < n; j++ {
-//			Update(
-//				fmt.Sprintf("http://example1%d.com", i),
-//				true,
-//				int64(100+i),
-//			)
-//		}
-//		n++
-//	}
-//
-//	// The 5 urls we got should now have counts 6, 5, 4, 3, 2 in that order
-//	count := Filter(5, "count")
-//	for i, node := range count {
-//		expectedCount := 6 - i
-//		if node.Data.Count != expectedCount {
-//			t.Errorf("expected %d, got %d", expectedCount, node.Data.Count)
-//		}
-//	}
-//
-//}
+func TestStore_GetLatestURLs(t *testing.T) {
+	newStore(15)
+	log.SetOutput(io.Discard)
+	latest := Filter(5, "latest")
 
-//// TestStore_GetTopURLs ensures that the top n counts on urls are returned
-//func TestStore_GetTopURLs(t *testing.T) {
-//	newStore(15)
-//
-//	// Update the first ten urls in the store with an extra counter
-//	for i := 0; i < 10; i++ {
-//		Update(
-//			fmt.Sprintf("http://example%d.com", i),
-//			true,
-//			int64(100+i),
-//		)
-//	}
-//
-//	topURLS := Filter(10, "latest")
-//
-//	for i := 0; i < len(topURLS); i++ {
-//		if topURLS[i].Data.Count != 2 {
-//			t.Errorf("expected count of URL: %s to be 2, got %d", topURLS[i].URL, topURLS[i].Data.Count)
-//		}
-//	}
-//}
+	// This list is in the order we expect back from the store when getting by "latest"
+	expectedURLS := []string{
+		"http://example14.com",
+		"http://example13.com",
+		"http://example12.com",
+		"http://example11.com",
+		"http://example10.com",
+	}
+
+	for i := range latest {
+		if latest[i].URL != expectedURLS[i] {
+			t.Errorf("expected %s, got %s", expectedURLS[i], latest[i].URL)
+		}
+	}
+
+	// Update the first 5 URLs with some extra Counts
+	n := 1
+	for i := 0; i < 5; i++ {
+		for j := 0; j < n; j++ {
+			Update(
+				fmt.Sprintf("http://example1%d.com", i),
+				true,
+				int64(100+i),
+			)
+		}
+		n++
+	}
+
+	// The 5 urls we got should now have counts 6, 5, 4, 3, 2 in that order
+	count := Filter(5, "count")
+	for i, node := range count {
+		expectedCount := 6 - i
+		if node.Data.Count != expectedCount {
+			t.Errorf("expected %d, got %d", expectedCount, node.Data.Count)
+		}
+	}
+
+}
+
+// TestStore_GetTopURLs ensures that the top n counts on urls are returned
+func TestStore_GetTopURLs(t *testing.T) {
+	newStore(15)
+	log.SetOutput(io.Discard)
+	// Update the first ten urls in the store with an extra counter
+	for i := 0; i < 10; i++ {
+		Update(
+			fmt.Sprintf("http://example%d.com", i),
+			true,
+			int64(100+i),
+		)
+	}
+
+	topURLS := Filter(10, "latest")
+
+	for i := 0; i < len(topURLS); i++ {
+		if topURLS[i].Data.Count != 2 {
+			t.Errorf("expected count of URL: %s to be 2, got %d", topURLS[i].URL, topURLS[i].Data.Count)
+		}
+	}
+}
 
 // TestStore_UpdateURL tests that an added node is added to the end of the list
 // and that an updated node is moved to the end of the list and count incremented
-//func TestStore_UpdateURL(t *testing.T) {
-//	tests := []struct {
-//		name          string
-//		url           string
-//		success       bool
-//		timeMs        int64
-//		expectedHead  string
-//		expectedTail  string
-//		expectedCount int
-//	}{
-//		{
-//			name:          "Add a new node",
-//			url:           "http://example15.com",
-//			success:       true,
-//			timeMs:        100,
-//			expectedHead:  "http://example0.com",
-//			expectedTail:  "http://example15.com",
-//			expectedCount: 1,
-//		},
-//		{
-//			name:          "Update an existing node",
-//			url:           "http://example1.com",
-//			success:       true,
-//			timeMs:        100,
-//			expectedHead:  "http://example0.com",
-//			expectedTail:  "http://example1.com",
-//			expectedCount: 2,
-//		},
-//	}
-//
-//	store := URLStore{
-//		mu:   &sync.RWMutex{},
-//		data: make(map[string]*URLNode),
-//	}
-//	go processStoreRequests(store)
-//
-//	for _, tt := range tests {
-//		t.Run(tt.name, func(t *testing.T) {
-//
-//			_ = Update(tt.url, tt.success, tt.timeMs)
-//
-//			// Check the head URL
-//			if store.head.URL != tt.expectedHead {
-//				t.Errorf("expected head %s, but got %s", tt.expectedHead, GlobalStore.head.URL)
-//			}
-//
-//			// Check the tail URL
-//			if store.tail.URL != tt.expectedTail {
-//				t.Errorf("expected tail %s, but got %s", tt.expectedTail, GlobalStore.tail.URL)
-//			}
-//
-//			// Check the count of the last node
-//			if store.tail.Data.Count != tt.expectedCount {
-//				t.Errorf("expected count %d, but got %d", tt.expectedCount, GlobalStore.tail.Data.Count)
-//			}
-//		})
-//	}
-//}
+func TestStore_UpdateURL(t *testing.T) {
+	tests := []struct {
+		name          string
+		url           string
+		success       bool
+		timeMs        int64
+		expectedHead  string
+		expectedTail  string
+		expectedCount int
+	}{
+		{
+			name:          "Add a new node",
+			url:           "http://example15.com",
+			success:       true,
+			timeMs:        100,
+			expectedHead:  "http://example0.com",
+			expectedTail:  "http://example15.com",
+			expectedCount: 1,
+		},
+		{
+			name:          "Update an existing node",
+			url:           "http://example1.com",
+			success:       true,
+			timeMs:        100,
+			expectedHead:  "http://example0.com",
+			expectedTail:  "http://example1.com",
+			expectedCount: 2,
+		},
+	}
+
+	store := &URLStore{
+		data: make(map[string]*URLNode),
+	}
+	go processStoreRequests(*store)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			_ = Update(tt.url, tt.success, tt.timeMs)
+
+			// Check the count of the last node
+			if store.tail.Data.Count != tt.expectedCount {
+				t.Errorf("expected count %d, but got %d", tt.expectedCount, store.tail.Data.Count)
+			}
+		})
+	}
+}
 
 // Benchmark to test fetching the latest 50 URLs from the store
 func BenchmarkGetLatestURLs(b *testing.B) {

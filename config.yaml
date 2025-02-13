@@ -1,7 +1,7 @@
 server:
-  port: "8080"
+  port: ":8080"
 
 downloader:
   worker_pool_size: 3
   num_of_batch_urls: 10
-  batch_interval_seconds: 60
+  batch_interval_seconds: 10
