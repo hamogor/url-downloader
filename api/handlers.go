@@ -22,6 +22,11 @@ type TopURLSResponse struct {
 
 func SubmitURL(w http.ResponseWriter, r *http.Request) {
 
+	if r.Method != "POST" {
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+
 	// Grab and decode the request body
 	var req SubmitURLRequest
 	decoder := json.NewDecoder(r.Body)
@@ -50,9 +55,15 @@ func SubmitURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func TopURLs(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != "GET" {
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Fetch and validate query params
 	sortBy := r.URL.Query().Get("sort_by")
 	getTopN := r.URL.Query().Get("get_n")
-
 	if sortBy != "count" && sortBy != "latest" {
 		http.Error(w, fmt.Sprintf("error: invalid sort by %s", sortBy), http.StatusBadRequest)
 	}
@@ -62,7 +73,8 @@ func TopURLs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("error: invalid n: %s should be convertable to int", getTopN), http.StatusBadRequest)
 	}
 
-	urls := store.Filter(n, "")
+	// Filter for the latest n URLs
+	urls := store.Filter(n, "latest")
 	responses := make([]TopURLSResponse, 0, n)
 	for _, node := range urls {
 		responses = append(responses, TopURLSResponse{
