@@ -2,12 +2,21 @@ package store
 
 import (
 	"log"
+	_ "net/http/pprof"
 	"sort"
 	"sync"
 	"time"
 )
 
 var GlobalStore *Store
+
+type URLData struct {
+	Count          int       // number of times the url has been submitted
+	Successes      int       // number of successful downloads
+	Failures       int       // number of failed downloads
+	LastDownloadMs int64     // Last download duration (ms)
+	LastSubmitted  time.Time // Time of last download
+}
 
 type URLNode struct {
 	URL  string
@@ -40,7 +49,7 @@ func (s *Store) GetLatestURLs(n int, sortBy string) []*URLNode {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	nodes := make([]*URLNode, 0)
+	nodes := make([]*URLNode, 0, n)
 	current := s.tail
 
 	for current != nil && len(nodes) < n {
@@ -50,9 +59,13 @@ func (s *Store) GetLatestURLs(n int, sortBy string) []*URLNode {
 
 	// Sort by count, list is already sorted by newest to oldest
 	if sortBy == "count" {
-		sort.Slice(nodes, func(i, j int) bool {
-			return nodes[i].Data.Count > nodes[j].Data.Count
-		})
+		//sort.Slice(nodes, func(i, j int) bool {
+		//	return nodes[i].Data.Count > nodes[j].Data.Count
+		//})
+
+		//psort.Slice(nodes, func(i, j int) bool {
+		//	return nodes[i].Data.Count > nodes[j].Data.Count
+		//}, n)
 	}
 
 	return nodes

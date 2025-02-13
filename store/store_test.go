@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
+	"runtime/pprof"
 	"testing"
 	"time"
 )
@@ -146,6 +148,30 @@ func TestStore_UpdateURL(t *testing.T) {
 
 // Benchmark to test fetching the latest 50 URLs from the store
 func BenchmarkGetLatestURLs(b *testing.B) {
+	f, err := os.Create("cpu_profile.prof")
+	if err != nil {
+		log.Fatalf("could not create CPU profile: %v", err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
+	log.SetOutput(ioutil.Discard)
+	// Populate the store with 1000 URLs
+	newStore(10000)
+
+	b.ResetTimer()
+
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
+	// Benchmark fetching the latest 50 URLs
+	for i := 0; i < b.N; i++ {
+		GlobalStore.GetLatestURLs(50, "")
+	}
+}
+
+// Benchmark to test fetching the latest 50 URLs from the store
+func BenchmarkGetCountURLs(b *testing.B) {
 	log.SetOutput(ioutil.Discard)
 	// Populate the store with 1000 URLs
 	newStore(10000)
@@ -154,7 +180,7 @@ func BenchmarkGetLatestURLs(b *testing.B) {
 
 	// Benchmark fetching the latest 50 URLs
 	for i := 0; i < b.N; i++ {
-		GlobalStore.GetLatestURLs(50, "")
+		GlobalStore.GetLatestURLs(10, "count")
 	}
 }
 
@@ -168,11 +194,18 @@ func BenchmarkGetTopURLs(b *testing.B) {
 		GlobalStore.UpdateURL(url, true, time.Now().UnixNano())
 	}
 
+	f, err := os.Create("cpu_profile.prof")
+	if err != nil {
+		log.Fatalf("could not create CPU profile: %v", err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
 	b.ResetTimer()
 
 	// Benchmark fetching the top 50 URLs based on count
 	for i := 0; i < b.N; i++ {
-		GlobalStore.GetTopURLs(50)
+		GlobalStore.GetTopURLs(10)
 	}
 }
 
@@ -188,19 +221,5 @@ func BenchmarkUpdateExistingURL(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		url := fmt.Sprintf("http://example%d", i)
 		GlobalStore.UpdateURL(url, true, time.Now().UnixNano())
-	}
-}
-
-// Benchmark for getting stats from the store
-func BenchmarkGetStats(b *testing.B) {
-	log.SetOutput(ioutil.Discard)
-	// Populate the store with 1000 URLs
-	newStore(10000)
-
-	b.ResetTimer()
-
-	// Benchmark getting stats from the store
-	for i := 0; i < b.N; i++ {
-		GlobalStore.GetStats()
 	}
 }
