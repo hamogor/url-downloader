@@ -4,18 +4,34 @@ import (
 	"log"
 	_ "net/http/pprof"
 	"sort"
-	"sync"
 	"time"
 )
 
-var GlobalStore *Store
+var (
+	Requests = make(chan Request, 100)
+	finished = make(chan struct{})
+)
+
+type Request struct {
+	Method   string
+	URL      string
+	SortBy   string
+	Response chan Response
+	TimeMs   int64
+	Number   int
+	Success  bool
+}
+
+type Response struct {
+	Output interface{}
+}
 
 type URLData struct {
-	Count          int       // number of times the url has been submitted
-	Successes      int       // number of successful downloads
-	Failures       int       // number of failed downloads
-	LastDownloadMs int64     // Last download duration (ms)
-	LastSubmitted  time.Time // Time of last download
+	LastDownloadMs int64
+	Count          int
+	Successes      int
+	Failures       int
+	LastSubmitted  time.Time
 }
 
 type URLNode struct {
@@ -25,77 +41,77 @@ type URLNode struct {
 	Next *URLNode
 }
 
-type Store struct {
-	mu   *sync.RWMutex
+type URLStore struct {
 	data map[string]*URLNode
 	head *URLNode
 	tail *URLNode
 }
 
-type URLStore interface {
-	GetLatestURLs(n int, sortBy string) []map[string]*URLData
-	UpdateURL(url string, success bool, timeMs int64)
-	GetStats() map[string]*URLData
+type Store interface {
+	update(url string, success bool, timeMs int64)
+	filter(n int, sortBy string) []*URLNode
 }
 
 func New() {
-	GlobalStore = &Store{
-		mu:   &sync.RWMutex{},
+	store := URLStore{
 		data: make(map[string]*URLNode),
 	}
+	go processStoreRequests(store)
 }
 
-func (s *Store) GetLatestURLs(n int, sortBy string) []*URLNode {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	nodes := make([]*URLNode, 0, n)
-	current := s.tail
-
-	for current != nil && len(nodes) < n {
-		nodes = append(nodes, current)
-		current = current.Prev
-	}
-
-	// Sort by count, list is already sorted by newest to oldest
-	if sortBy == "count" {
-		//sort.Slice(nodes, func(i, j int) bool {
-		//	return nodes[i].Data.Count > nodes[j].Data.Count
-		//})
-
-		//psort.Slice(nodes, func(i, j int) bool {
-		//	return nodes[i].Data.Count > nodes[j].Data.Count
-		//}, n)
-	}
-
-	return nodes
+func Shutdown() {
+	log.Println("store: attempting graceful shutdown")
+	close(Requests)
+	<-finished
+	log.Println("store: shutdown complete")
 }
 
-func (s *Store) GetTopURLs(n int) []*URLNode {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	var nodes []*URLNode
-	for node := s.head; node != nil; node = node.Next {
-		nodes = append(nodes, node)
+func processStoreRequests(s URLStore) {
+	for request := range Requests {
+		switch request.Method {
+		case "update":
+			s.update(request.URL, request.Success, request.TimeMs)
+			request.Response <- Response{Output: "ok"}
+		case "filter":
+			data := s.filter(request.Number, request.SortBy)
+			request.Response <- Response{Output: data}
+		}
 	}
-
-	// Sort the slice of nodes by Count in descending order without changing the linked list
-	sort.Slice(nodes, func(i, j int) bool {
-		return nodes[i].Data.Count > nodes[j].Data.Count
-	})
-
-	// Return  the top 10 URLs
-	if len(nodes) > n {
-		nodes = nodes[:n]
-	}
-
-	return nodes
+	close(finished)
 }
 
-func (s *Store) UpdateURL(url string, success bool, timeMs int64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func Update(url string, success bool, timeMs int64) interface{} {
+	responseChan := make(chan Response)
+	defer close(responseChan)
 
+	Requests <- Request{
+		Method:   "update",
+		URL:      url,
+		Success:  success,
+		TimeMs:   timeMs,
+		Response: responseChan,
+	}
+
+	response := <-responseChan
+	return response.Output
+}
+
+func Filter(n int, sortBy string) []*URLNode {
+	responseChan := make(chan Response)
+	defer close(responseChan)
+
+	Requests <- Request{
+		Method:   "filter",
+		Number:   n,
+		SortBy:   sortBy,
+		Response: responseChan,
+	}
+
+	response := <-responseChan
+	return response.Output.([]*URLNode)
+}
+
+func (s *URLStore) update(url string, success bool, timeMs int64) {
 	// If this URL has already been submitted, update the data
 	if node, exists := s.data[url]; exists {
 		log.Printf("updating existing url: %s", url)
@@ -161,6 +177,21 @@ func (s *Store) UpdateURL(url string, success bool, timeMs int64) {
 
 }
 
-func (s *Store) GetStats() map[string]*URLNode {
-	return s.data
+func (s *URLStore) filter(n int, sortBy string) []*URLNode {
+	nodes := make([]*URLNode, 0, n)
+	current := s.tail
+
+	for current != nil && len(nodes) < n {
+		nodes = append(nodes, current)
+		current = current.Prev
+	}
+
+	// Sort by count, list is already sorted by newest to oldest
+	if sortBy == "count" {
+		sort.Slice(nodes, func(i, j int) bool {
+			return nodes[i].Data.Count > nodes[j].Data.Count
+		})
+	}
+
+	return nodes
 }
