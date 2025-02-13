@@ -1,9 +1,9 @@
 package store
 
 import (
+	"container/heap"
 	"log"
 	_ "net/http/pprof"
-	"sort"
 	"time"
 )
 
@@ -42,9 +42,9 @@ type URLNode struct {
 }
 
 type URLStore struct {
-	data map[string]*URLNode
-	head *URLNode
-	tail *URLNode
+	data       map[string]*URLNode
+	countHeap  *URLHeap
+	latestHeap *URLHeap
 }
 
 type Store interface {
@@ -56,7 +56,41 @@ func New() {
 	store := URLStore{
 		data: make(map[string]*URLNode),
 	}
+
+	store.countHeap = &URLHeap{
+		By: func(i, j *URLNode) bool {
+			return i.Data.Count > j.Data.Count
+		},
+	}
+
+	store.latestHeap = &URLHeap{
+		By: func(i, j *URLNode) bool {
+			return i.Data.LastSubmitted.After(j.Data.LastSubmitted)
+		},
+	}
+
+	heap.Init(store.countHeap)
+	heap.Init(store.latestHeap)
+	store.reorderHeapsPeriodically()
 	go processStoreRequests(store)
+}
+
+func (s *URLStore) reorderHeapsPeriodically() {
+	go func() {
+		ticker := time.NewTicker(5 * time.Second) // Reorder heaps every 500ms
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				// Reorder both heaps
+				heap.Init(s.latestHeap) // Rebuild the recency heap
+
+				heap.Init(s.countHeap) // Rebuild the count heap
+				log.Println("Both heaps reordered")
+			}
+		}
+	}()
 }
 
 func Shutdown() {
@@ -115,18 +149,8 @@ func (s *URLStore) update(url string, success bool, timeMs int64) {
 	// If this URL has already been submitted, update the data
 	if node, exists := s.data[url]; exists {
 		log.Printf("updating existing url: %s", url)
-		if node.Prev != nil {
-			node.Prev.Next = node.Next
-		} else {
-			s.head = node.Next
-		}
 
-		if node.Next != nil {
-			node.Next.Prev = node.Prev
-		} else {
-			s.tail = node.Prev
-		}
-
+		// Update the URL node data
 		if success {
 			node.Data.Successes++
 			node.Data.LastDownloadMs = timeMs
@@ -137,19 +161,11 @@ func (s *URLStore) update(url string, success bool, timeMs int64) {
 		node.Data.LastSubmitted = time.Now()
 		node.Data.Count++
 
-		// Move node to end
-		node.Prev, node.Next = s.tail, nil
-		if s.tail != nil {
-			s.tail.Next = node
-		}
-		s.tail = node
-
-		return
-
-	}
-
-	// URL hasn't been submitted, request was successful, add it to the map
-	if success {
+		// Re-heapify the heap after the update
+		heap.Fix(s.countHeap, findIndex(s.countHeap, node))
+		heap.Fix(s.latestHeap, findIndex(s.latestHeap, node))
+	} else if success {
+		// Add a new URL node if it is successful
 		log.Printf("adding new url: %s", url)
 		newNode := &URLNode{
 			URL: url,
@@ -161,36 +177,31 @@ func (s *URLStore) update(url string, success bool, timeMs int64) {
 			},
 		}
 
-		// Insert the new node at the tail
-		if s.tail == nil {
-			// if the list is empty, set head and tail
-			s.head, s.tail = newNode, newNode
-		} else {
-			// List isn't empty, append the new node to the tail
-			s.tail.Next = newNode
-			newNode.Prev = s.tail
-			s.tail = newNode
-		}
-
+		// Insert the new node into the data map
 		s.data[url] = newNode
-	}
 
+		// Push the new node into both heaps
+		heap.Push(s.countHeap, newNode)
+		heap.Push(s.latestHeap, newNode)
+	}
 }
 
 func (s *URLStore) filter(n int, sortBy string) []*URLNode {
-	nodes := make([]*URLNode, 0, n)
-	current := s.tail
-
-	for current != nil && len(nodes) < n {
-		nodes = append(nodes, current)
-		current = current.Prev
+	var heapToUse *URLHeap
+	switch sortBy {
+	case "count":
+		heapToUse = s.countHeap
+	case "latest":
+		heapToUse = s.latestHeap
 	}
 
-	// Sort by count, list is already sorted by newest to oldest
-	if sortBy == "count" {
-		sort.Slice(nodes, func(i, j int) bool {
-			return nodes[i].Data.Count > nodes[j].Data.Count
-		})
+	// Pre-allocate slice for top N results
+	nodes := make([]*URLNode, 0, n)
+
+	// Efficiently extract top N elements without calling heap.Pop
+	for i := 0; i < n && heapToUse.Len() > 0; i++ {
+		nodes = append(nodes, heapToUse.Nodes[0]) // Grab the root node
+		heapToUse.Nodes = heapToUse.Nodes[1:]     // Remove it without heapify
 	}
 
 	return nodes

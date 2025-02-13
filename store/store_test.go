@@ -152,25 +152,15 @@ func newStore(n int) {
 
 // Benchmark to test fetching the latest 50 URLs from the store
 func BenchmarkGetLatestURLs(b *testing.B) {
-	f, err := os.Create("cpu_profile.prof")
-	if err != nil {
-		log.Fatalf("could not create CPU profile: %v", err)
-	}
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
-
 	log.SetOutput(ioutil.Discard)
 	// Populate the store with 1000 URLs
 	newStore(10000)
 
 	b.ResetTimer()
 
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
-
 	// Benchmark fetching the latest 50 URLs
 	for i := 0; i < b.N; i++ {
-		Filter(50, "")
+		Filter(50, "latest")
 	}
 }
 
@@ -209,7 +199,7 @@ func BenchmarkGetTopURLs(b *testing.B) {
 
 	// Benchmark fetching the top 50 URLs based on count
 	for i := 0; i < b.N; i++ {
-		Filter(10, "")
+		Filter(10, "count")
 	}
 }
 
