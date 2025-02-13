@@ -2,12 +2,15 @@ package store
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"testing"
+	"time"
 )
 
-func newStore() {
+func newStore(n int) {
 	New()
-	for i := 0; i < 15; i++ {
+	for i := 0; i < n; i++ {
 		GlobalStore.UpdateURL(
 			fmt.Sprintf("http://example%d.com", i),
 			true,
@@ -19,7 +22,7 @@ func newStore() {
 // TestStore_GetLatestURLs ensures that the latest n urls are returned
 // either by their time submitted or by their count
 func TestStore_GetLatestURLs(t *testing.T) {
-	newStore()
+	newStore(15)
 
 	latest := GlobalStore.GetLatestURLs(5, "latest")
 
@@ -64,7 +67,7 @@ func TestStore_GetLatestURLs(t *testing.T) {
 
 // TestStore_GetTopURLs ensures that the top n counts on urls are returned
 func TestStore_GetTopURLs(t *testing.T) {
-	newStore()
+	newStore(15)
 
 	// Update the first ten urls in the store with an extra counter
 	for i := 0; i < 10; i++ {
@@ -116,7 +119,7 @@ func TestStore_UpdateURL(t *testing.T) {
 		},
 	}
 
-	newStore()
+	newStore(15)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -138,5 +141,66 @@ func TestStore_UpdateURL(t *testing.T) {
 				t.Errorf("expected count %d, but got %d", tt.expectedCount, GlobalStore.tail.Data.Count)
 			}
 		})
+	}
+}
+
+// Benchmark to test fetching the latest 50 URLs from the store
+func BenchmarkGetLatestURLs(b *testing.B) {
+	log.SetOutput(ioutil.Discard)
+	// Populate the store with 1000 URLs
+	newStore(10000)
+
+	b.ResetTimer()
+
+	// Benchmark fetching the latest 50 URLs
+	for i := 0; i < b.N; i++ {
+		GlobalStore.GetLatestURLs(50, "")
+	}
+}
+
+// Benchmark to test fetching the top 50 URLs based on their count
+func BenchmarkGetTopURLs(b *testing.B) {
+	log.SetOutput(ioutil.Discard)
+	// Populate the store with 1000 URLs and update their count
+	newStore(10000)
+	for i := 0; i < 1000; i++ {
+		url := fmt.Sprintf("http://example%d", i)
+		GlobalStore.UpdateURL(url, true, time.Now().UnixNano())
+	}
+
+	b.ResetTimer()
+
+	// Benchmark fetching the top 50 URLs based on count
+	for i := 0; i < b.N; i++ {
+		GlobalStore.GetTopURLs(50)
+	}
+}
+
+// Benchmark for updating an existing URL
+func BenchmarkUpdateExistingURL(b *testing.B) {
+	log.SetOutput(ioutil.Discard)
+
+	// Populate the store with 1000 URLs
+	newStore(10000)
+
+	// Benchmark updating an existing URL
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		url := fmt.Sprintf("http://example%d", i)
+		GlobalStore.UpdateURL(url, true, time.Now().UnixNano())
+	}
+}
+
+// Benchmark for getting stats from the store
+func BenchmarkGetStats(b *testing.B) {
+	log.SetOutput(ioutil.Discard)
+	// Populate the store with 1000 URLs
+	newStore(10000)
+
+	b.ResetTimer()
+
+	// Benchmark getting stats from the store
+	for i := 0; i < b.N; i++ {
+		GlobalStore.GetStats()
 	}
 }
