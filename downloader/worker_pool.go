@@ -29,6 +29,8 @@ func NewWorkerPool(poolSize int) *WorkerPool {
 	return pool
 }
 
+// Shutdown closes the Requests channel to prevent more requests coming in
+// then blocks on the finished channel
 func (wp *WorkerPool) Shutdown() {
 	log.Println("workerpool: attempting graceful shutdown")
 	close(Requests)

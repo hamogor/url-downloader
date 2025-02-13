@@ -66,6 +66,11 @@ func TestSubmitURL(t *testing.T) {
 }
 
 func TestTopURLs(t *testing.T) {
+	// Prepare the test data
+	store.Update("http://example0.com", true, 100)
+	store.Update("http://example1.com", true, 200)
+	store.Update("http://example2.com", true, 150)
+
 	tests := []struct {
 		name             string
 		sortBy           string
@@ -74,13 +79,23 @@ func TestTopURLs(t *testing.T) {
 		expectedResponse []TopURLSResponse
 	}{
 		{
-			name:           "valid request for top URLs",
+			name:           "valid request for top URLs sorted by count",
 			sortBy:         "count",
 			getTopN:        "2",
 			expectedStatus: http.StatusOK,
 			expectedResponse: []TopURLSResponse{
-				{URL: "http://example2.com", Count: 20},
-				{URL: "http://example1.com", Count: 10},
+				{URL: "http://example1.com", Count: 200},
+				{URL: "http://example2.com", Count: 150},
+			},
+		},
+		{
+			name:           "valid request for top URLs sorted by latest",
+			sortBy:         "latest",
+			getTopN:        "2",
+			expectedStatus: http.StatusOK,
+			expectedResponse: []TopURLSResponse{
+				{URL: "http://example2.com", Count: 150}, // This would depend on the latest data logic
+				{URL: "http://example1.com", Count: 200},
 			},
 		},
 		{
@@ -95,8 +110,15 @@ func TestTopURLs(t *testing.T) {
 			getTopN:        "not-a-number",
 			expectedStatus: http.StatusBadRequest,
 		},
+		{
+			name:           "empty getTopN value",
+			sortBy:         "count",
+			getTopN:        "",
+			expectedStatus: http.StatusBadRequest,
+		},
 	}
 
+	// Run each test case
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a new request with query parameters
@@ -129,6 +151,7 @@ func TestTopURLs(t *testing.T) {
 					t.Fatalf("expected response length %d, got %d", len(tt.expectedResponse), len(res))
 				}
 
+				// Check each returned URL in response
 				for i, item := range res {
 					if item.URL != tt.expectedResponse[i].URL || item.Count != tt.expectedResponse[i].Count {
 						t.Errorf("expected %v, got %v", tt.expectedResponse[i], item)
