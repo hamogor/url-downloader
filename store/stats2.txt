@@ -1,0 +1,11 @@
+goos: linux
+goarch: amd64
+pkg: spamhaus/store
+cpu: 13th Gen Intel(R) Core(TM) i5-13600K
+BenchmarkGetLatestURLs-20        	  593661	      2142 ns/op	     538 B/op	       3 allocs/op
+BenchmarkGetCountURLs-20         	 1608460	       797.5 ns/op	     256 B/op	       5 allocs/op
+BenchmarkGetTopURLs-20           	 1515897	       728.3 ns/op	     201 B/op	       3 allocs/op
+BenchmarkUpdateExistingURL-20    	  949516	      1058 ns/op	     382 B/op	       5 allocs/op
+BenchmarkAddNewURL-20            	 1268721	       877.5 ns/op	     256 B/op	       3 allocs/op
+PASS
+ok  	spamhaus/store	18.436s

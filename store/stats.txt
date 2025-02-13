@@ -1,0 +1,56 @@
+goos: linux
+goarch: amd64
+pkg: spamhaus/store
+cpu: 13th Gen Intel(R) Core(TM) i5-13600K
+BenchmarkGetLatestURLs-20        	  640996	      1680 ns/op	     538 B/op	       3 allocs/op
+BenchmarkGetLatestURLs-20        	 1010024	      1272 ns/op	     537 B/op	       3 allocs/op
+BenchmarkGetLatestURLs-20        	 1007274	      1164 ns/op	     537 B/op	       3 allocs/op
+BenchmarkGetLatestURLs-20        	  963109	      1227 ns/op	     537 B/op	       3 allocs/op
+BenchmarkGetLatestURLs-20        	 1086147	      1185 ns/op	     537 B/op	       3 allocs/op
+BenchmarkGetLatestURLs-20        	 1134601	      1134 ns/op	     537 B/op	       3 allocs/op
+BenchmarkGetLatestURLs-20        	 1297989	       915.8 ns/op	     537 B/op	       3 allocs/op
+BenchmarkGetLatestURLs-20        	 1446600	       822.2 ns/op	     537 B/op	       3 allocs/op
+BenchmarkGetLatestURLs-20        	 1330785	       892.7 ns/op	     537 B/op	       3 allocs/op
+BenchmarkGetLatestURLs-20        	 1261999	      1027 ns/op	     537 B/op	       3 allocs/op
+BenchmarkGetCountURLs-20         	 1789718	       667.6 ns/op	     256 B/op	       5 allocs/op
+BenchmarkGetCountURLs-20         	 1521801	       746.4 ns/op	     256 B/op	       5 allocs/op
+BenchmarkGetCountURLs-20         	 1768761	       614.7 ns/op	     256 B/op	       5 allocs/op
+BenchmarkGetCountURLs-20         	 1888603	       634.7 ns/op	     256 B/op	       5 allocs/op
+BenchmarkGetCountURLs-20         	 2024989	       615.1 ns/op	     256 B/op	       5 allocs/op
+BenchmarkGetCountURLs-20         	 2163752	       654.9 ns/op	     256 B/op	       5 allocs/op
+BenchmarkGetCountURLs-20         	 2029065	       607.0 ns/op	     256 B/op	       5 allocs/op
+BenchmarkGetCountURLs-20         	 1881115	       640.1 ns/op	     256 B/op	       5 allocs/op
+BenchmarkGetCountURLs-20         	 2065350	       681.0 ns/op	     256 B/op	       5 allocs/op
+BenchmarkGetCountURLs-20         	 1914009	       597.1 ns/op	     256 B/op	       5 allocs/op
+BenchmarkGetTopURLs-20           	 1926962	       574.1 ns/op	     200 B/op	       3 allocs/op
+BenchmarkGetTopURLs-20           	 2166398	       694.2 ns/op	     200 B/op	       3 allocs/op
+BenchmarkGetTopURLs-20           	 1924512	       629.9 ns/op	     200 B/op	       3 allocs/op
+BenchmarkGetTopURLs-20           	 1954161	       516.3 ns/op	     200 B/op	       3 allocs/op
+BenchmarkGetTopURLs-20           	 1939245	       574.1 ns/op	     200 B/op	       3 allocs/op
+BenchmarkGetTopURLs-20           	 1924201	       574.7 ns/op	     200 B/op	       3 allocs/op
+BenchmarkGetTopURLs-20           	 1935355	       621.9 ns/op	     200 B/op	       3 allocs/op
+BenchmarkGetTopURLs-20           	 1928005	       624.6 ns/op	     200 B/op	       3 allocs/op
+BenchmarkGetTopURLs-20           	 1925839	       781.0 ns/op	     200 B/op	       3 allocs/op
+BenchmarkGetTopURLs-20           	 1947736	       721.1 ns/op	     200 B/op	       3 allocs/op
+BenchmarkUpdateExistingURL-20    	  971982	      1239 ns/op	     392 B/op	       6 allocs/op
+BenchmarkUpdateExistingURL-20    	  968947	      1036 ns/op	     326 B/op	       6 allocs/op
+BenchmarkUpdateExistingURL-20    	 1121204	      1253 ns/op	     455 B/op	       6 allocs/op
+BenchmarkUpdateExistingURL-20    	  863330	      1276 ns/op	     364 B/op	       5 allocs/op
+BenchmarkUpdateExistingURL-20    	 1111598	       991.4 ns/op	     278 B/op	       5 allocs/op
+BenchmarkUpdateExistingURL-20    	 1109401	       993.1 ns/op	     290 B/op	       6 allocs/op
+BenchmarkUpdateExistingURL-20    	 1109446	      1175 ns/op	     520 B/op	       6 allocs/op
+BenchmarkUpdateExistingURL-20    	  733620	      1640 ns/op	     578 B/op	       5 allocs/op
+BenchmarkUpdateExistingURL-20    	  730945	      1373 ns/op	     275 B/op	       5 allocs/op
+BenchmarkUpdateExistingURL-20    	 1110205	       994.5 ns/op	     308 B/op	       5 allocs/op
+BenchmarkAddNewURL-20            	 1260157	       961.5 ns/op	     266 B/op	       3 allocs/op
+BenchmarkAddNewURL-20            	 1084296	       948.8 ns/op	     228 B/op	       3 allocs/op
+BenchmarkAddNewURL-20            	 1081866	      1044 ns/op	     245 B/op	       3 allocs/op
+BenchmarkAddNewURL-20            	 1246813	       973.8 ns/op	     278 B/op	       3 allocs/op
+BenchmarkAddNewURL-20            	 1241862	       979.7 ns/op	     279 B/op	       3 allocs/op
+BenchmarkAddNewURL-20            	 1253962	       890.4 ns/op	     242 B/op	       3 allocs/op
+BenchmarkAddNewURL-20            	 1088151	       943.3 ns/op	     248 B/op	       3 allocs/op
+BenchmarkAddNewURL-20            	 1279477	      1101 ns/op	     591 B/op	       3 allocs/op
+BenchmarkAddNewURL-20            	  864772	      1553 ns/op	     725 B/op	       3 allocs/op
+BenchmarkAddNewURL-20            	  707695	      1779 ns/op	     625 B/op	       3 allocs/op
+PASS
+ok  	spamhaus/store	375.416s

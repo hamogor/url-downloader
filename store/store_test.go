@@ -217,8 +217,16 @@ func BenchmarkGetTopURLs(b *testing.B) {
 func BenchmarkUpdateExistingURL(b *testing.B) {
 	log.SetOutput(ioutil.Discard)
 
+	f, err := os.Create("cpu_profile.prof")
+	if err != nil {
+		log.Fatalf("could not create CPU profile: %v", err)
+	}
+
 	// Populate the store with 1000 URLs
 	newStore(10000)
+
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
 
 	// Benchmark updating an existing URL
 	b.ResetTimer()
@@ -226,4 +234,32 @@ func BenchmarkUpdateExistingURL(b *testing.B) {
 		url := fmt.Sprintf("http://example%d", i)
 		Update(url, true, time.Now().UnixNano())
 	}
+}
+
+// Benchmark add new urls
+func BenchmarkAddNewURL(b *testing.B) {
+	log.SetOutput(ioutil.Discard)
+
+	f, err := os.Create("cpu_profile.prof")
+	if err != nil {
+		log.Fatalf("could not create CPU profile: %v", err)
+	}
+
+	// Populate the store with 1000 URLs
+	newStore(0)
+
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
+	// Benchmark updating an existing URL
+	urls := make([]string, 0)
+	for i := 0; i < b.N; i++ {
+		urls = append(urls, fmt.Sprintf("http://example%d", i))
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Update(urls[i], true, time.Now().UnixNano())
+	}
+
 }
