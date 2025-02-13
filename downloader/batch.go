@@ -3,7 +3,6 @@ package downloader
 import (
 	"log"
 	"spamhaus/store"
-	"sync"
 	"time"
 )
 
@@ -31,39 +30,27 @@ func (b *BatchProcess) Run() {
 	go func() {
 		for {
 			b.runJob()
-			time.Sleep(b.interval)
+			time.Sleep(time.Second * b.interval)
 		}
 	}()
 }
 
 func (b *BatchProcess) runJob() {
-	log.Printf("batch: starting batch job")
+	log.Println("batch: starting batch process")
 
-	topURLS := store.GlobalStore.GetTopURLs(b.numberOfURLs)
-	if len(topURLS) == 0 {
+	topURLs := store.Filter(b.numberOfURLs, "")
+	if len(topURLs) == 0 {
 		log.Println("batch: no urls to process")
 		return
 	}
 
-	var wg sync.WaitGroup
-	queue := make(chan struct{}, b.concurrency)
-
-	for _, node := range topURLS {
-		time.Sleep(b.interval)
-		wg.Add(1)
-		queue <- struct{}{}
-
-		go func(urlNode *store.URLNode) {
-			defer wg.Done()
-			defer func() { <-queue }()
-			success, duration := fetchURL(urlNode.URL)
-			store.GlobalStore.UpdateURL(urlNode.URL, success, duration)
-		}(node)
+	for _, url := range topURLs {
+		AddTask(url.URL)
 	}
 
-	wg.Wait()
-	log.Println("batch: done. Download statistics:")
-	b.logStats(topURLS)
+	b.workerPool.Wait()
+	log.Println("batch: finished batch process")
+	b.logStats(topURLs)
 }
 
 func (b *BatchProcess) logStats(topURLS []*store.URLNode) {

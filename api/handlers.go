@@ -39,7 +39,7 @@ func SubmitURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add download job for this URL to the worker pool
-	go downloader.GlobalDownloader.AddDownloadTask(req.URL)
+	go downloader.AddTask(req.URL)
 
 	err = json.NewEncoder(w).Encode(map[string]string{"message": "url submitted"})
 	if err != nil {
@@ -62,8 +62,8 @@ func TopURLs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("error: invalid n: %s should be convertable to int", getTopN), http.StatusBadRequest)
 	}
 
-	urls := store.GlobalStore.GetTopURLs(n)
-	responses := make([]TopURLSResponse, len(urls))
+	urls := store.Filter(n, "")
+	responses := make([]TopURLSResponse, 0, n)
 	for _, node := range urls {
 		responses = append(responses, TopURLSResponse{
 			URL:   node.URL,

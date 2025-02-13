@@ -1,7 +1,6 @@
 package downloader
 
 import (
-	"log"
 	"testing"
 	"time"
 )
@@ -14,24 +13,21 @@ func TestWorkerPoolConcurrency(t *testing.T) {
 		expectedLogMsg string
 	}{
 		{
-			name:           "Multiple workers with concurrent tasks",
-			poolSize:       3,
-			taskURLs:       []string{"http://google.com", "http://google.co.uk", "https://google.cz"},
-			expectedLogMsg: "wp done", // Just check that "wp done" appears in logs after processing.
+			name:     "Multiple workers with concurrent tasks",
+			poolSize: 3,
+			taskURLs: []string{"http://google.com", "http://google.co.uk", "https://google.cz"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Capture log output
-			var capturedLogs []string
-			log.SetOutput(&logWriter{logs: &capturedLogs})
 
 			wp := NewWorkerPool(tt.poolSize)
 			startTime := time.Now()
 
 			for _, url := range tt.taskURLs {
-				wp.addTask(url)
+				AddTask(url)
 			}
 
 			wp.Wait()
@@ -47,14 +43,4 @@ func TestWorkerPoolConcurrency(t *testing.T) {
 
 		})
 	}
-}
-
-// Helper struct to capture log output
-type logWriter struct {
-	logs *[]string
-}
-
-func (lw *logWriter) Write(p []byte) (n int, err error) {
-	*lw.logs = append(*lw.logs, string(p))
-	return len(p), nil
 }

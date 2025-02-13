@@ -5,9 +5,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"spamhaus/api"
 	"spamhaus/downloader"
 	"spamhaus/store"
+	"syscall"
 	"time"
 )
 
@@ -29,18 +31,40 @@ func main() {
 		log.Fatalf("error loading config: %v", err)
 	}
 
-	http.Handle("/submiturl", http.HandlerFunc(api.SubmitURL))
-	http.Handle("/topurls", http.HandlerFunc(api.TopURLs))
-
-	downloader.New(config.Downloader.WorkerPoolSize)
 	store.New()
 
-	downloader.NewBatchProcess(time.Duration(config.Downloader.BatchIntervalSeconds), config.Downloader.WorkerPoolSize, config.Downloader.NumOfBatchURLs)
-
-	log.Printf("starting http server")
-	if err := http.ListenAndServe(config.Server.Port, nil); err != nil {
-		log.Printf("error: starting http server: %s", err.Error())
+	mux := http.NewServeMux()
+	server := &http.Server{
+		Addr:    ":8081",
+		Handler: mux,
 	}
+
+	go server.ListenAndServe()
+
+	httpServer, err := api.Start(config.Server.Port)
+	if err != nil {
+		log.Fatalf("error starting http server: %v", err)
+	}
+
+	downloader.NewBatchProcess(
+		time.Duration(config.Downloader.BatchIntervalSeconds),
+		config.Downloader.WorkerPoolSize,
+		config.Downloader.NumOfBatchURLs,
+	)
+
+	shutdown := make(chan os.Signal, 1)
+
+	signal.Notify(
+		shutdown,
+		os.Interrupt,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+		syscall.SIGINT,
+	)
+
+	<-shutdown
+	api.Shutdown(httpServer)
+	store.Shutdown()
 
 }
 
