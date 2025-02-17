@@ -74,7 +74,7 @@ func TopURLs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Filter for the latest n URLs
-	urls := store.Filter(n, "latest")
+	urls := store.Filter(n, sortBy)
 	responses := make([]TopURLSResponse, 0, n)
 	for _, node := range urls {
 		responses = append(responses, TopURLSResponse{

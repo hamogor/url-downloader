@@ -67,9 +67,15 @@ func TestSubmitURL(t *testing.T) {
 
 func TestTopURLs(t *testing.T) {
 	// Prepare the test data
+	newStore()
+
+	// Give example0 3 count
 	store.Update("http://example0.com", true, 100)
-	store.Update("http://example1.com", true, 200)
-	store.Update("http://example2.com", true, 150)
+	store.Update("http://example0.com", true, 100)
+
+	// Then example1 = 2, example2 = 1
+	store.Update("http://example2.com", true, 200)
+	store.Update("http://example1.com", true, 150)
 
 	tests := []struct {
 		name             string
@@ -81,21 +87,23 @@ func TestTopURLs(t *testing.T) {
 		{
 			name:           "valid request for top URLs sorted by count",
 			sortBy:         "count",
-			getTopN:        "2",
+			getTopN:        "3",
 			expectedStatus: http.StatusOK,
 			expectedResponse: []TopURLSResponse{
-				{URL: "http://example1.com", Count: 200},
-				{URL: "http://example2.com", Count: 150},
+				{URL: "http://example0.com", Count: 3},
+				{URL: "http://example1.com", Count: 2},
+				{URL: "http://example2.com", Count: 1},
 			},
 		},
 		{
 			name:           "valid request for top URLs sorted by latest",
 			sortBy:         "latest",
-			getTopN:        "2",
+			getTopN:        "3",
 			expectedStatus: http.StatusOK,
 			expectedResponse: []TopURLSResponse{
-				{URL: "http://example2.com", Count: 150}, // This would depend on the latest data logic
-				{URL: "http://example1.com", Count: 200},
+				{URL: "http://example1.com", Count: 2},
+				{URL: "http://example2.com", Count: 1}, // This would depend on the latest data logic
+				{URL: "http://example0.com", Count: 3},
 			},
 		},
 		{
